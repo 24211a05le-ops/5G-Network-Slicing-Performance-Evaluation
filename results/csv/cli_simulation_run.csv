@@ -1,0 +1,4 @@
+experiment_id,slice_type,traffic_condition,allocation_strategy,users,bandwidth,demand_mbps,allocated_bw_mbps,throughput,latency,packet_loss,jitter,reliability,resource_utilization,served_requests,dropped_requests,sla_satisfaction,sla_satisfied,performance_score
+CLI_Single_Run,eMBB,high,dynamic,150,120.0,134.98,103.81,103.76,153.54,23.09,2.85,76.91,100.0,611558,183589,25.0,False,57.34
+CLI_Single_Run,URLLC,high,dynamic,150,120.0,13.42,14.1,13.37,5.21,0.01,0.01,99.99,95.24,1006855,0,100.0,True,91.77
+CLI_Single_Run,mMTC,high,dynamic,150,120.0,5.44,2.09,2.07,175.26,61.54,19.59,38.46,100.0,156852,251028,50.0,False,66.39
