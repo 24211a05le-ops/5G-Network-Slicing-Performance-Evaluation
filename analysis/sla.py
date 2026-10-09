@@ -32,13 +32,19 @@ class SLAEvaluator:
 
         passed_checks = sum([throughput_ok, latency_ok, loss_ok, reliability_ok])
         total_checks = 4
+        breached_checks = total_checks - passed_checks
         sla_satisfaction_pct = (passed_checks / total_checks) * 100.0
+        sla_breach_pct = (breached_checks / total_checks) * 100.0
         sla_satisfied = (passed_checks == total_checks)
 
         return {
             "slice_type": slice_type,
             "sla_satisfied": sla_satisfied,
             "sla_satisfaction_pct": sla_satisfaction_pct,
+            "sla_breach_pct": sla_breach_pct,
+            "passed_checks_count": passed_checks,
+            "breached_checks_count": breached_checks,
+            "total_checks_count": total_checks,
             "checks": {
                 "throughput_ok": throughput_ok,
                 "latency_ok": latency_ok,

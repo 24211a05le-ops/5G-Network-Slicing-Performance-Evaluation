@@ -266,17 +266,25 @@ with tab3:
         slice_type = row["slice_type"]
         sla_met = row["sla_satisfied"]
         pct = row["sla_satisfaction"]
+        breach_pct = row["sla_breach_pct"]
+        passed_cnt = row["passed_checks_count"]
+        breached_cnt = row["breached_checks_count"]
         
         status_icon = "✅ SLA SATISFIED" if sla_met else "❌ SLA BREACHED"
         color = "#22C55E" if sla_met else "#EF4444"
         
-        st.markdown(f"#### {slice_type}: <span style='color:{color}; font-weight:700'>{status_icon} ({pct:.1f}%)</span>", unsafe_allow_html=True)
+        st.markdown(
+            f"#### {slice_type}: <span style='color:{color}; font-weight:700'>{status_icon}</span> "
+            f"<span style='color:#94A3B8; font-size:0.95rem;'>(Satisfaction: {pct:.1f}% | Breach: {breach_pct:.1f}% | Checks Passed: {passed_cnt}/4)</span>",
+            unsafe_allow_html=True
+        )
         
         reqs = config.SLA_REQUIREMENTS[slice_type]
-        col_req1, col_req2, col_req3 = st.columns(3)
-        col_req1.markdown(f"<span style='color:#CBD5E1'>**Target Min Throughput:** {reqs['min_throughput_mbps']} Mbps</span>", unsafe_allow_html=True)
-        col_req2.markdown(f"<span style='color:#CBD5E1'>**Target Max Latency:** {reqs['max_latency_ms']} ms</span>", unsafe_allow_html=True)
-        col_req3.markdown(f"<span style='color:#CBD5E1'>**Target Max Loss:** {reqs['max_packet_loss_pct']}%</span>", unsafe_allow_html=True)
+        col_req1, col_req2, col_req3, col_req4 = st.columns(4)
+        col_req1.markdown(f"<span style='color:#CBD5E1'>**Min Throughput:** {reqs['min_throughput_mbps']} Mbps</span>", unsafe_allow_html=True)
+        col_req2.markdown(f"<span style='color:#CBD5E1'>**Max Latency:** {reqs['max_latency_ms']} ms</span>", unsafe_allow_html=True)
+        col_req3.markdown(f"<span style='color:#CBD5E1'>**Max Loss:** {reqs['max_packet_loss_pct']}%</span>", unsafe_allow_html=True)
+        col_req4.markdown(f"<span style='color:#CBD5E1'>**Min Reliability:** {reqs['min_reliability_pct']}%</span>", unsafe_allow_html=True)
         st.divider()
 
 with tab4:

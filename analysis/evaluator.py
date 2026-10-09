@@ -48,6 +48,9 @@ class PerformanceEvaluator:
                 "served_requests": m["served_packets"],
                 "dropped_requests": m["dropped_packets"],
                 "sla_satisfaction": sla_res["sla_satisfaction_pct"],
+                "sla_breach_pct": sla_res["sla_breach_pct"],
+                "passed_checks_count": sla_res["passed_checks_count"],
+                "breached_checks_count": sla_res["breached_checks_count"],
                 "sla_satisfied": sla_res["sla_satisfied"],
                 "performance_score": score
             }

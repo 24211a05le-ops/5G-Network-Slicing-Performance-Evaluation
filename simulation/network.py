@@ -62,27 +62,27 @@ class SubstrateNetwork:
         else:
             packet_loss_pct = 0.0
 
-        # URLLC slice special reliability boost under sufficient allocation
+        # URLLC slice special reliability boost under sufficient allocation (HARQ / Packet Duplication)
         if slice_type == config.SLICE_URLLC and allocated_bw_mbps >= demand_mbps:
-            # Highly resilient channel encoding (HARQ / packet duplication)
             packet_loss_pct = max(0.01, packet_loss_pct * 0.05)
 
         # 2. Latency calculation (End-to-End Latency in milliseconds)
-        # Latency = Propagation Delay + Transmission Delay + Queuing Delay + Processing Delay
-        # Transmission delay: packet_size / allocated_bandwidth
-        packet_size_bits = traffic["packet_size_kb"] * 8.0 * 1024.0
-        bw_bps = max(1e-3, allocated_bw_mbps * 1e6)
+        # Latency = Propagation Delay + Transmission Delay + Processing Delay + Queuing Delay + Jitter
+        # Transmission delay: packet_size_bits / allocated_bandwidth_bps
+        # packet_size_kb is in Kilobytes = 8000 bits. Allocated BW is in Mbps = 1e6 bits/sec.
+        packet_size_bits = traffic["packet_size_kb"] * 8000.0
+        bw_bps = max(1e3, allocated_bw_mbps * 1e6)
         tx_delay_ms = (packet_size_bits / bw_bps) * 1000.0
 
         # Processing delay inversely proportional to allocated CPU
         proc_delay_ms = (10.0 / max(0.1, allocated_cpu))
 
-        # Queuing delay depends on link utilization (M/M/1 queuing model representation)
+        # Queuing delay based on link utilization (M/M/1 queue model representation)
         utilization = min(0.99, demand_mbps / max(1e-3, allocated_bw_mbps))
         if utilization < 1.0:
-            queue_delay_ms = (utilization / (1.0 - utilization)) * 1.5
+            queue_delay_ms = (utilization / max(0.01, 1.0 - utilization)) * 1.5
         else:
-            # Under congestion, queue delay explodes up to buffer timeout limits
+            # Under congestion, queue delay escalates up to buffer timeout limits
             queue_delay_ms = 150.0 + (utilization - 1.0) * 200.0
 
         # URLLC prioritization gives queue bypass / preemption latency reduction
@@ -92,14 +92,14 @@ class SubstrateNetwork:
 
         # Jitter variation
         jitter_std = max(0.1, queue_delay_ms * 0.15)
-        jitter_ms = abs(self.rng.normal(0, jitter_std))
+        jitter_ms = abs(float(self.rng.normal(0, jitter_std)))
 
         total_latency_ms = self.base_propagation_delay_ms + tx_delay_ms + proc_delay_ms + queue_delay_ms + jitter_ms
 
-        # 3. Reliability Percentage
+        # 3. Reliability Percentage (Mathematically consistent with packet loss)
         reliability_pct = max(0.0, min(100.0, 100.0 - packet_loss_pct))
 
-        # 4. Resource Utilization Percentage
+        # 4. Resource Utilization Percentage (Demand vs Allocated share)
         bw_utilization_pct = min(100.0, (demand_mbps / max(1e-3, allocated_bw_mbps)) * 100.0) if allocated_bw_mbps > 0 else 0.0
         cpu_utilization_pct = min(100.0, (demand_mbps / max(1e-3, allocated_cpu)) * 100.0) if allocated_cpu > 0 else 0.0
         avg_resource_utilization_pct = (bw_utilization_pct + cpu_utilization_pct) / 2.0

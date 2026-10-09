@@ -55,9 +55,8 @@ class TrafficGenerator:
             total_arrival_rate = base_arrival * num_users
 
         # Calculate demand bandwidth (Mbps)
-        # arrival_rate (packets/sec) * packet_size (kb/packet) * 8 (bits/byte) / 1000 / 1000 => Mbps
-        # Note: packet_size_kb is in kilobytes (1 KB = 8 kbits = 8000 bits = 0.008 Mbits)
-        # Mbps = packets_per_sec * (packet_size_kb * 8 / 1000)
+        # arrival_rate (packets/sec) * packet_size (kb/packet) * 8 (bits/byte) / 1000 => Mbps (since 1 kb = 1000 bytes = 8000 bits)
+        # Or: arrival_rate_pps * (packet_size_kb * 1000 * 8) / 1,000,000 Mbps = (arrival_rate * packet_size_kb * 8) / 1000.0
         generated_mbps = (total_arrival_rate * effective_packet_size * 8.0) / 1000.0
         
         # Requests generated during simulation duration

@@ -68,26 +68,23 @@ SLICE_TRAFFIC_PROFILES = {
     SLICE_EMBB: {
         "description": "Enhanced Mobile Broadband - Video streaming & large file transfers",
         "default_users": 50,
-        "packet_size_kb": 1.2,       # 1200 Bytes per packet = 1.2 KB
+        "packet_size_kb": 1.2,       # 1.2 KB = 9600 bits
         "base_arrival_rate": 100.0, # Packets / sec / user
-        "base_bandwidth_mbps": 50.0,
-        "priority_weight": 2
+        "priority_weight": 2.0
     },
     SLICE_URLLC: {
         "description": "Ultra-Reliable Low-Latency Communication - Autonomous vehicles & remote surgery",
         "default_users": 30,
-        "packet_size_kb": 0.10,     # 100 Bytes per packet = 0.10 KB
+        "packet_size_kb": 0.10,     # 0.1 KB = 800 bits
         "base_arrival_rate": 200.0, # High frequency low delay transmission
-        "base_bandwidth_mbps": 20.0,
-        "priority_weight": 5        # Highest priority
+        "priority_weight": 5.0      # Highest priority
     },
     SLICE_MMTC: {
         "description": "Massive Machine Type Communications - Smart city sensors & IoT devices",
         "default_users": 500,
-        "packet_size_kb": 0.10,     # 100 Bytes per packet = 0.10 KB
+        "packet_size_kb": 0.10,     # 0.1 KB = 800 bits
         "base_arrival_rate": 5.0,   # Periodic low rate per device
-        "base_bandwidth_mbps": 10.0,
-        "priority_weight": 1        # Lower priority
+        "priority_weight": 1.0      # Lower priority
     }
 }
 
