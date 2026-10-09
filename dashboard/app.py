@@ -13,6 +13,7 @@ import config
 from simulation.simulator import Simulator
 from slicing.slice_manager import SliceManager
 from analysis.evaluator import PerformanceEvaluator
+from analysis.allocation_audit import AllocationAuditor
 from visualization.plots import PlotGenerator
 
 st.set_page_config(
@@ -183,23 +184,43 @@ random_seed = st.sidebar.number_input("Random Seed", min_value=1, max_value=9999
 
 run_button = st.sidebar.button("🚀 Run Simulation", use_container_width=True)
 
-# Instantiates Engine
+# ── Instantiate Engine ───────────────────────────────────────────────────────
 simulator = Simulator(total_bandwidth_mbps=total_bandwidth, total_cpu=total_cpu, seed=random_seed)
 slice_manager = SliceManager(strategy=strategy)
 evaluator = PerformanceEvaluator()
+auditor = AllocationAuditor()
 
 user_counts = {
-    config.SLICE_EMBB: embb_users,
-    config.SLICE_URLLC: urllc_users,
-    config.SLICE_MMTC: mmtc_users
+    config.SLICE_EMBB:  int(embb_users),
+    config.SLICE_URLLC: int(urllc_users),
+    config.SLICE_MMTC:  int(mmtc_users)
 }
 
-step_results = simulator.run_step(
-    slice_manager=slice_manager,
-    traffic_load=traffic_condition,
-    user_counts=user_counts,
-    duration=float(sim_duration)
-)
+# ── Run simulation step, capturing raw allocations for the audit tab ──────────
+load_factor = config.TRAFFIC_LOAD_LEVELS.get(traffic_condition, 1.0)
+from simulation.traffic_generator import TrafficGenerator
+_tg = TrafficGenerator(simulator.rng)
+_demands = {
+    stype: _tg.generate_slice_traffic(
+        slice_type=stype,
+        num_users=user_counts[stype],
+        load_factor=load_factor,
+        duration=float(sim_duration)
+    )
+    for stype in config.ACTIVE_SLICES
+}
+_allocations = slice_manager.allocate_resources(_demands, simulator.network)
+
+step_results = []
+for stype in config.ACTIVE_SLICES:
+    raw = simulator.network.process_slice_traffic(
+        slice_type=stype,
+        traffic=_demands[stype],
+        allocated_bw_mbps=_allocations[stype]["allocated_bw_mbps"],
+        allocated_cpu=_allocations[stype]["allocated_cpu"]
+    )
+    from simulation.metrics import MetricCalculator
+    step_results.append(MetricCalculator.format_summary_metrics(raw))
 
 df_res = evaluator.evaluate_step(
     step_metrics=step_results,
@@ -209,6 +230,20 @@ df_res = evaluator.evaluate_step(
     users_count=int(sum(user_counts.values()) / 3),
     total_bandwidth=total_bandwidth
 )
+
+# Build audit table from actual simulation data
+df_audit = auditor.build_audit_table(
+    step_metrics=step_results,
+    allocations=_allocations,
+    total_bw=total_bandwidth,
+    total_cpu=total_cpu,
+    traffic_condition=traffic_condition,
+    strategy=strategy,
+    duration_s=float(sim_duration),
+    seed=int(random_seed),
+    user_counts=user_counts
+)
+_sub = auditor.substrate_summary()
 
 # Helper function to render dark-themed seaborn plots without deprecation warnings
 def render_dark_plot(df: pd.DataFrame, y_col: str, title: str, ylabel: str, palette_name: str):
@@ -232,7 +267,13 @@ def render_dark_plot(df: pd.DataFrame, y_col: str, title: str, ylabel: str, pale
     plt.close(fig)
 
 # Tabs Layout
-tab1, tab2, tab3, tab4 = st.tabs(["📊 Performance KPIs", "📈 Comparative Charts", "📜 SLA Satisfaction", "📋 Data Table & Exports"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    "📊 Performance KPIs",
+    "📈 Comparative Charts",
+    "📜 SLA Satisfaction",
+    "📋 Data Table & Exports",
+    "🔍 Allocation Audit",
+])
 
 with tab1:
     st.subheader("Key Performance Indicators (KPIs) by Slice")
@@ -296,5 +337,71 @@ with tab4:
         label="📥 Download Current Run CSV",
         data=csv,
         file_name="streamlit_slice_simulation_results.csv",
+        mime="text/csv"
+    )
+
+with tab5:
+    st.subheader("Resource Allocation Audit Table")
+    st.caption(
+        "Shows per-slice demand, allocation, actual consumption, and utilisation for "
+        "both bandwidth (Mbps) and CPU (units). The TOTAL row aggregates all slices. "
+        "Unallocated BW and remaining CPU are shown in the substrate summary below."
+    )
+
+    # ── Substrate-level summary banner ─────────────────────────────────────
+    bc1, bc2, bc3, bc4 = st.columns(4)
+    bc1.metric("Total Substrate BW",   f"{_sub['total_bw']:.1f} Mbps")
+    bc2.metric("BW Allocated",          f"{_sub['sum_alloc_bw']:.2f} Mbps",
+               f"Unallocated: {_sub['unallocated_bw']:.2f} Mbps")
+    bc3.metric("Total Substrate CPU",  f"{_sub['total_cpu']:.1f} units")
+    bc4.metric("CPU Allocated",         f"{_sub['sum_alloc_cpu']:.2f} units",
+               f"Remaining: {_sub['remaining_cpu']:.2f} units")
+
+    st.divider()
+
+    # ── Per-slice audit table ───────────────────────────────────────────────
+    # Highlight the TOTAL row
+    def _highlight_total(row):
+        if row["Slice"] == "TOTAL":
+            return ["background-color: #1E3A5F; font-weight: bold;"] * len(row)
+        return [""] * len(row)
+
+    bw_cols  = ["BW Demand (Mbps)", "BW Allocated (Mbps)", "BW Consumed (Mbps)",
+                "BW Unused (Mbps)", "BW Alloc % of Total", "BW Utilization %"]
+    cpu_cols = ["CPU Allocated (units)", "CPU Consumed (units)", "CPU Unused (units)",
+                "CPU Utilization %"]
+    pkt_cols = ["Total Packets", "Served Packets", "Dropped Packets",
+                "Packet Loss %", "Reliability %"]
+    meta_cols = ["Slice", "Users/Devices", "Traffic Condition", "Strategy",
+                 "Duration (s)", "Seed"]
+
+    display_cols = meta_cols + bw_cols + cpu_cols + pkt_cols
+    styled = (
+        df_audit[display_cols]
+        .style
+        .apply(_highlight_total, axis=1)
+        .format({
+            "BW Demand (Mbps)": "{:.3f}",
+            "BW Allocated (Mbps)": "{:.3f}",
+            "BW Consumed (Mbps)": "{:.3f}",
+            "BW Unused (Mbps)": "{:.3f}",
+            "BW Alloc % of Total": "{:.2f}%",
+            "BW Utilization %": "{:.2f}%",
+            "CPU Allocated (units)": "{:.3f}",
+            "CPU Consumed (units)": "{:.3f}",
+            "CPU Unused (units)": "{:.3f}",
+            "CPU Utilization %": "{:.2f}%",
+            "Packet Loss %": "{:.3f}%",
+            "Reliability %": "{:.3f}%",
+        })
+    )
+    st.dataframe(styled, use_container_width=True)
+
+    # ── Download audit CSV ─────────────────────────────────────────────────
+    audit_csv = df_audit.to_csv(index=False).encode("utf-8")
+    st.download_button(
+        label="📥 Download Allocation Audit CSV",
+        data=audit_csv,
+        file_name="allocation_audit.csv",
         mime="text/csv"
     )

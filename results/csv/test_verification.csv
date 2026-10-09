@@ -1,0 +1,4 @@
+experiment_id,slice_type,traffic_condition,allocation_strategy,users,bandwidth,demand_mbps,allocated_bw_mbps,throughput,latency,packet_loss,jitter,reliability,resource_utilization,served_requests,dropped_requests,sla_satisfaction,sla_breach_pct,passed_checks_count,breached_checks_count,sla_satisfied,performance_score
+exp_default,eMBB,medium,dynamic,100,100.0,49.99,84.14,49.97,4.48,0.0,0.04,100.0,59.41,294499,0,100.0,0.0,4,0,True,93.35
+exp_default,URLLC,medium,dynamic,100,100.0,4.97,13.09,4.95,2.31,0.01,0.0,99.99,37.98,372909,0,100.0,0.0,4,0,True,86.81
+exp_default,mMTC,medium,dynamic,100,100.0,2.02,2.76,2.0,10.54,0.0,0.54,100.0,73.18,151740,0,100.0,0.0,4,0,True,95.71
